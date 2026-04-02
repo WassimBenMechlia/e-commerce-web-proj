@@ -1,0 +1,92 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-primary: #fdfcf8;
+  --bg-secondary: #f5f0e8;
+  --bg-tertiary: #eae3d9;
+  --bg-inverse: #171412;
+  --primary: #c65d3b;
+  --accent: #8b9d77;
+  --text-primary: #2c241b;
+  --text-secondary: #8a7f76;
+  --text-inverse: #fdfcf8;
+  --border: #dcd3c7;
+  --error: #b54a3f;
+  --warning: #d4a056;
+  --surface: rgba(253, 252, 248, 0.72);
+  color-scheme: light;
+}
+
+[data-theme='dark'] {
+  --bg-primary: #171412;
+  --bg-secondary: #211c19;
+  --bg-tertiary: #2d2622;
+  --bg-inverse: #fdfcf8;
+  --primary: #e48762;
+  --accent: #a4b590;
+  --text-primary: #f4eee4;
+  --text-secondary: #b6a99a;
+  --text-inverse: #171412;
+  --border: #3b312d;
+  --error: #d16e63;
+  --warning: #e1b06a;
+  --surface: rgba(23, 20, 18, 0.72);
+  color-scheme: dark;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background-primary font-sans text-text-primary antialiased;
+    background-image:
+      radial-gradient(circle at top, rgba(198, 93, 59, 0.12), transparent 30%),
+      linear-gradient(180deg, rgba(245, 240, 232, 0.55), transparent 42%);
+    min-height: 100vh;
+  }
+
+  [data-theme='dark'] body {
+    background-image:
+      radial-gradient(circle at top, rgba(228, 135, 98, 0.14), transparent 30%),
+      linear-gradient(180deg, rgba(33, 28, 25, 0.8), transparent 42%);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-heading font-semibold tracking-[-0.02em];
+  }
+
+  p {
+    @apply leading-7;
+  }
+
+  img {
+    @apply block max-w-full;
+  }
+
+  ::selection {
+    background: rgba(198, 93, 59, 0.2);
+  }
+}
+
+@layer components {
+  .page-shell {
+    @apply mx-auto w-full max-w-7xl px-6 py-10 md:px-12 md:py-14;
+  }
+
+  .surface-panel {
+    @apply rounded-card border border-border bg-background-secondary shadow-soft;
+  }
+}

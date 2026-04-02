@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: desert-modern-commerce-api
+    env: node
+    plan: starter
+    buildCommand: npm install && npm run build -w server
+    startCommand: npm run start -w server
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 20

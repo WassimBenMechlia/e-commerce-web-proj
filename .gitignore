@@ -1,0 +1,15 @@
+node_modules
+dist
+build
+.DS_Store
+.env
+.env.local
+.env.production
+.env.development.local
+.env.test.local
+*.log
+coverage
+.turbo
+client/dist
+server/dist
+server/.data
