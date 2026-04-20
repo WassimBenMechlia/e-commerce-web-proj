@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { ShoppingBag, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -21,6 +22,34 @@ export const CartPage = () => {
   const setServerCart = useCartStore((state) => state.setServerCart);
   const updateGuestItem = useCartStore((state) => state.updateGuestItem);
   const removeGuestItem = useCartStore((state) => state.removeGuestItem);
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const syncCart = async () => {
+      try {
+        const { data } = await api.get<CartResponse>('/cart');
+
+        if (!cancelled) {
+          setServerCart(data.cart);
+        }
+      } catch {
+        if (!cancelled) {
+          setServerCart(null);
+        }
+      }
+    };
+
+    void syncCart();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [setServerCart, user]);
 
   const items = user
     ? serverCart?.items ?? []

@@ -66,6 +66,35 @@ npm run format
 - If SMTP is not configured in local development, Nodemailer uses JSON transport instead of live delivery.
 - Cloudinary upload endpoints require real Cloudinary credentials.
 
+## Stripe CLI
+
+Use the Stripe CLI to forward live test-mode webhooks to the local backend webhook route:
+
+```bash
+npm run stripe:listen
+```
+
+The helper script reads the backend port from `server/.env` and forwards
+`checkout.session.completed` events to `http://localhost:<PORT>/api/orders/webhook`.
+
+Before the first run:
+
+```bash
+stripe login
+```
+
+When `stripe listen` starts, Stripe prints a webhook signing secret like `whsec_...`.
+Use that value for `STRIPE_WEBHOOK_SECRET` in `server/.env`, then restart the backend.
+
+Recommended local payment test flow:
+
+1. Run `npm run dev`.
+2. In another terminal, run `npm run stripe:listen`.
+3. Create an order through the app and complete the hosted Stripe Checkout page with a test card such as `4242 4242 4242 4242`.
+
+`stripe trigger checkout.session.completed` is not enough for this app by itself because
+orders are matched using metadata from Checkout Sessions created by the backend.
+
 ## Seeded Accounts
 
 The seed script uses:

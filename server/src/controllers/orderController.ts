@@ -5,27 +5,23 @@ import { env } from '../config/env.js';
 import { stripe } from '../config/stripe.js';
 import { Cart } from '../models/Cart.js';
 import { Order, type OrderDocument, type OrderStatus } from '../models/Order.js';
+import { Product } from '../models/Product.js';
+import { shippingAddressSchema } from '../validation/addressSchema.js';
 import { User } from '../models/User.js';
 import { orderConfirmationTemplate } from '../utils/emailTemplates.js';
 import { sendEmail } from '../utils/sendEmail.js';
 import { AppError } from '../utils/appError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-
-const shippingAddressSchema = z.object({
-  label: z.string().min(1),
-  fullName: z.string().min(2),
-  line1: z.string().min(3),
-  line2: z.string().optional(),
-  city: z.string().min(2),
-  state: z.string().min(2),
-  postalCode: z.string().min(2),
-  country: z.string().min(2),
-  phone: z.string().min(6),
-});
+import { getValidatedCart } from '../utils/cart.js';
 
 const createOrderSchema = z.object({
   shippingAddress: shippingAddressSchema,
-  note: z.string().max(250).optional(),
+  note: z
+    .string()
+    .trim()
+    .max(250)
+    .optional()
+    .transform((value) => (value && value.length > 0 ? value : undefined)),
 });
 
 const updateOrderStatusSchema = z.object({
@@ -47,11 +43,14 @@ const sendOrderConfirmation = async (order: OrderDocument) => {
   });
 };
 
-const markOrderPaid = async (orderId: string, stripeSessionId?: string) => {
+const markOrderPaid = async (
+  orderId: string,
+  stripeSessionId?: string,
+): Promise<OrderDocument | null> => {
   const order = await Order.findById(orderId);
 
   if (!order) {
-    return;
+    return null;
   }
 
   const wasAlreadyPaid = order.paymentStatus === 'paid';
@@ -62,11 +61,25 @@ const markOrderPaid = async (orderId: string, stripeSessionId?: string) => {
   }
   await order.save();
 
-  await Cart.findOneAndUpdate({ user: order.user }, { items: [] });
-
   if (!wasAlreadyPaid) {
+    await Promise.all(
+      order.items.map(async (item) => {
+        const product = await Product.findById(item.product).select('stock');
+
+        if (!product) {
+          return;
+        }
+
+        product.stock = Math.max(0, product.stock - item.quantity);
+        await product.save();
+      }),
+    );
+
+    await Cart.findOneAndUpdate({ user: order.user }, { items: [] });
     await sendOrderConfirmation(order);
   }
+
+  return order;
 };
 
 export const createOrder = asyncHandler(async (request: Request, response: Response) => {
@@ -75,37 +88,40 @@ export const createOrder = asyncHandler(async (request: Request, response: Respo
   }
 
   const payload = createOrderSchema.parse(request.body);
-  const cart = await Cart.findOne({ user: request.user.id }).populate({
-    path: 'items.product',
-    select: 'name price stock images isActive',
-  });
+  const validatedCart = await getValidatedCart(request.user.id);
+  const cart = validatedCart.cart;
 
-  if (!cart || cart.items.length === 0) {
-    throw new AppError('Your cart is empty.', 400);
+  if (cart.items.length === 0) {
+    throw new AppError(
+      validatedCart.changed
+        ? 'Your cart was updated because some items are no longer available.'
+        : 'Your cart is empty.',
+      400,
+      {
+        cart,
+        issues: validatedCart.issues,
+      },
+    );
   }
 
-  const orderItems = cart.items.map((item) => {
-    const product = item.product as unknown as {
-      _id: { toString(): string };
-      name: string;
-      price: number;
-      stock: number;
-      images: { url: string }[];
-      isActive: boolean;
-    };
+  if (validatedCart.changed) {
+    throw new AppError(
+      'Your cart was updated because some items changed availability. Review the latest quantities and try again.',
+      409,
+      {
+        cart,
+        issues: validatedCart.issues,
+      },
+    );
+  }
 
-    if (!product || !product.isActive || item.quantity > product.stock) {
-      throw new AppError('One or more cart items are unavailable.', 400);
-    }
-
-    return {
-      product: product._id,
-      name: product.name,
-      image: product.images[0]?.url ?? '',
-      price: product.price,
-      quantity: item.quantity,
-    };
-  });
+  const orderItems = cart.items.map((item) => ({
+    product: item.product.id,
+    name: item.product.name,
+    image: item.product.image,
+    price: item.product.price,
+    quantity: item.quantity,
+  }));
 
   const subtotal = orderItems.reduce(
     (sum, item) => sum + item.price * item.quantity,
@@ -127,10 +143,10 @@ export const createOrder = asyncHandler(async (request: Request, response: Respo
   });
 
   if (!stripe) {
-    await markOrderPaid(order._id.toString());
+    const paidOrder = await markOrderPaid(order._id.toString());
 
     response.status(201).json({
-      order,
+      order: paidOrder ?? order,
       checkoutUrl: null,
       simulated: true,
     });
@@ -179,8 +195,6 @@ export const confirmOrderSession = asyncHandler(
       throw new AppError('Authentication required.', 401);
     }
 
-    const sessionId = z.string().min(1).parse(request.query.sessionId);
-
     if (!stripe) {
       const order = await Order.findOne({
         user: request.user.id,
@@ -194,6 +208,7 @@ export const confirmOrderSession = asyncHandler(
       return;
     }
 
+    const sessionId = z.string().min(1).parse(request.query.sessionId);
     const session = await stripe.checkout.sessions.retrieve(sessionId);
 
     if (!session.metadata?.orderId) {

@@ -36,6 +36,11 @@ import {
 import { useAuthStore } from '@/store/authStore';
 import type { Address, OrderStatus, PaymentStatus } from '@/types';
 import type { AuthResponse, OrdersResponse } from '@/types/api';
+import { addressFormSchema, profileFormSchema } from '@/validation/forms';
+import type { AddressFormValues, ProfileFormValues } from '@/validation/forms';
+
+type ProfileErrors = Partial<Record<keyof ProfileFormValues, string>>;
+type AddressErrors = Partial<Record<keyof AddressFormValues, string>>;
 
 type ProfileSection = 'overview' | 'orders' | 'addresses' | 'security';
 type OrderStatusFilter = 'all' | OrderStatus;
@@ -136,18 +141,6 @@ const sanitizeAddress = (address: Address): Address => ({
   isDefault: Boolean(address.isDefault),
 });
 
-const isAddressValid = (address: Address) =>
-  Boolean(
-    address.label.trim() &&
-      address.fullName.trim() &&
-      address.line1.trim() &&
-      address.city.trim() &&
-      address.state.trim() &&
-      address.postalCode.trim() &&
-      address.country.trim() &&
-      address.phone.trim().length >= 6,
-  );
-
 const StatCard = ({
   title,
   value,
@@ -192,6 +185,8 @@ export const ProfilePage = () => {
   const [passwordResetLink, setPasswordResetLink] = useState<string | null>(null);
   const [selectedAvatarFile, setSelectedAvatarFile] = useState<File | null>(null);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
+  const [profileErrors, setProfileErrors] = useState<ProfileErrors>({});
+  const [addressErrors, setAddressErrors] = useState<AddressErrors>({});
 
   useEffect(
     () => () => {
@@ -214,6 +209,7 @@ export const ProfilePage = () => {
 
         return null;
       });
+      setProfileErrors({});
     }
   }, [user]);
 
@@ -315,7 +311,16 @@ export const ProfilePage = () => {
         ? { ...address }
         : { ...emptyAddress, isDefault: (user?.addresses.length ?? 0) === 0 },
     );
+    setAddressErrors({});
     setIsAddressModalOpen(true);
+  };
+
+  const updateAddressField = <K extends keyof Address>(field: K, value: Address[K]) => {
+    setAddressDraft((current) => ({ ...current, [field]: value }));
+    setAddressErrors((current) => ({
+      ...current,
+      [field]: undefined,
+    }));
   };
 
   const handleAvatarFileChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -403,11 +408,29 @@ export const ProfilePage = () => {
 
     setIsSavingProfile(true);
 
+    const parsedProfile = profileFormSchema.safeParse({
+      name,
+      avatarUrl,
+    });
+
+    if (!parsedProfile.success) {
+      const fieldErrors = parsedProfile.error.flatten().fieldErrors;
+      setProfileErrors({
+        name: fieldErrors.name?.[0],
+        avatarUrl: fieldErrors.avatarUrl?.[0],
+      });
+      toast.error(parsedProfile.error.issues[0]?.message ?? 'Enter valid profile details.');
+      setIsSavingProfile(false);
+      return;
+    }
+
+    setProfileErrors({});
+
     try {
       const avatar = await uploadAvatarIfNeeded();
       const { data } = await api.put<AuthResponse>('/users/me', {
-        name: name.trim(),
-        avatar,
+        name: parsedProfile.data.name,
+  avatar,
       });
       setUser(data.user);
       setAvatarUrl(data.user.avatar?.url ?? '');
@@ -430,20 +453,36 @@ export const ProfilePage = () => {
   const handleSaveAddress = async () => {
     const payload = sanitizeAddress(addressDraft);
 
-    if (!isAddressValid(payload)) {
-      toast.error('Please complete every required address field.');
+    const parsedAddress = addressFormSchema.safeParse(payload);
+
+    if (!parsedAddress.success) {
+      const fieldErrors = parsedAddress.error.flatten().fieldErrors;
+      setAddressErrors({
+        label: fieldErrors.label?.[0],
+        fullName: fieldErrors.fullName?.[0],
+        line1: fieldErrors.line1?.[0],
+        line2: fieldErrors.line2?.[0],
+        city: fieldErrors.city?.[0],
+        state: fieldErrors.state?.[0],
+        postalCode: fieldErrors.postalCode?.[0],
+        country: fieldErrors.country?.[0],
+        phone: fieldErrors.phone?.[0],
+        isDefault: fieldErrors.isDefault?.[0],
+      });
+      toast.error(parsedAddress.error.issues[0]?.message ?? 'Enter a valid address.');
       return;
     }
 
+    setAddressErrors({});
     setIsSavingAddress(true);
 
     try {
       const { data } = editingAddress?._id
         ? await api.put<AuthResponse>(
             `/users/me/addresses/${editingAddress._id}`,
-            payload,
+            parsedAddress.data,
           )
-        : await api.post<AuthResponse>('/users/me/addresses', payload);
+        : await api.post<AuthResponse>('/users/me/addresses', parsedAddress.data);
       setUser(data.user);
       setIsAddressModalOpen(false);
       toast.success('Address saved.');
@@ -647,13 +686,24 @@ export const ProfilePage = () => {
                 <Input
                   label="Full name"
                   value={name}
-                  onChange={(event) => setName(event.target.value)}
+                  error={profileErrors.name}
+                  onChange={(event) => {
+                    setName(event.target.value);
+                    setProfileErrors((current) => ({ ...current, name: undefined }));
+                  }}
                 />
                 <Input label="Email" value={user.email} disabled />
                 <Input
                   label="Avatar URL"
                   value={avatarUrl}
-                  onChange={(event) => setAvatarUrl(event.target.value)}
+                  error={profileErrors.avatarUrl}
+                  onChange={(event) => {
+                    setAvatarUrl(event.target.value);
+                    setProfileErrors((current) => ({
+                      ...current,
+                      avatarUrl: undefined,
+                    }));
+                  }}
                 />
                 <div className="grid gap-3 rounded-card border border-border bg-background-primary p-4">
                   <p className="text-sm font-medium text-text-primary">Avatar image</p>
@@ -1102,71 +1152,56 @@ export const ProfilePage = () => {
           <Input
             label="Label"
             value={addressDraft.label}
-            onChange={(event) =>
-              setAddressDraft((current) => ({ ...current, label: event.target.value }))
-            }
+            error={addressErrors.label}
+            onChange={(event) => updateAddressField('label', event.target.value)}
           />
           <Input
             label="Full Name"
             value={addressDraft.fullName}
-            onChange={(event) =>
-              setAddressDraft((current) => ({
-                ...current,
-                fullName: event.target.value,
-              }))
-            }
+            error={addressErrors.fullName}
+            onChange={(event) => updateAddressField('fullName', event.target.value)}
           />
           <Input
             label="Line 1"
             value={addressDraft.line1}
-            onChange={(event) =>
-              setAddressDraft((current) => ({ ...current, line1: event.target.value }))
-            }
+            error={addressErrors.line1}
+            onChange={(event) => updateAddressField('line1', event.target.value)}
           />
           <Input
             label="Line 2"
             value={addressDraft.line2 ?? ''}
-            onChange={(event) =>
-              setAddressDraft((current) => ({ ...current, line2: event.target.value }))
-            }
+            error={addressErrors.line2}
+            onChange={(event) => updateAddressField('line2', event.target.value)}
           />
           <Input
             label="City"
             value={addressDraft.city}
-            onChange={(event) =>
-              setAddressDraft((current) => ({ ...current, city: event.target.value }))
-            }
+            error={addressErrors.city}
+            onChange={(event) => updateAddressField('city', event.target.value)}
           />
           <Input
             label="State"
             value={addressDraft.state}
-            onChange={(event) =>
-              setAddressDraft((current) => ({ ...current, state: event.target.value }))
-            }
+            error={addressErrors.state}
+            onChange={(event) => updateAddressField('state', event.target.value)}
           />
           <Input
             label="Postal Code"
             value={addressDraft.postalCode}
-            onChange={(event) =>
-              setAddressDraft((current) => ({
-                ...current,
-                postalCode: event.target.value,
-              }))
-            }
+            error={addressErrors.postalCode}
+            onChange={(event) => updateAddressField('postalCode', event.target.value)}
           />
           <Input
             label="Country"
             value={addressDraft.country}
-            onChange={(event) =>
-              setAddressDraft((current) => ({ ...current, country: event.target.value }))
-            }
+            error={addressErrors.country}
+            onChange={(event) => updateAddressField('country', event.target.value)}
           />
           <Input
             label="Phone"
             value={addressDraft.phone}
-            onChange={(event) =>
-              setAddressDraft((current) => ({ ...current, phone: event.target.value }))
-            }
+            error={addressErrors.phone}
+            onChange={(event) => updateAddressField('phone', event.target.value)}
           />
           <label className="flex items-center gap-3 text-sm text-text-primary md:col-span-2">
             <input

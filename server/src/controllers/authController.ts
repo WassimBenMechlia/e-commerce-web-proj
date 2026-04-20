@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { hasSmtpConfig } from '../config/email.js';
 import { env } from '../config/env.js';
 import { User } from '../models/User.js';
+import { addressSchema } from '../validation/addressSchema.js';
 import { clearAuthCookies, REFRESH_COOKIE_NAME, setAuthCookies } from '../utils/cookies.js';
 import { verificationEmailTemplate, passwordResetTemplate } from '../utils/emailTemplates.js';
 import { sendEmail } from '../utils/sendEmail.js';
@@ -19,43 +20,32 @@ import {
   verifyRefreshToken,
 } from '../utils/tokens.js';
 
-const addressSchema = z.object({
-  label: z.string().min(1),
-  fullName: z.string().min(2),
-  line1: z.string().min(3),
-  line2: z.string().optional(),
-  city: z.string().min(2),
-  state: z.string().min(2),
-  postalCode: z.string().min(2),
-  country: z.string().min(2),
-  phone: z.string().min(6),
-  isDefault: z.boolean().optional(),
-});
-
 const guestCartItemSchema = z.object({
-  productId: z.string().min(1),
+  productId: z.string().trim().min(1),
   quantity: z.number().int().min(1).max(20),
 });
 
+const trimmedEmailSchema = z.string().trim().email();
+
 const registerSchema = z.object({
-  name: z.string().min(2),
-  email: z.string().email(),
+  name: z.string().trim().min(2),
+  email: trimmedEmailSchema,
   password: z.string().min(8),
   addresses: z.array(addressSchema).optional(),
 });
 
 const loginSchema = z.object({
-  email: z.string().email(),
+  email: trimmedEmailSchema,
   password: z.string().min(8),
   guestCart: z.array(guestCartItemSchema).optional(),
 });
 
 const forgotPasswordSchema = z.object({
-  email: z.string().email(),
+  email: trimmedEmailSchema,
 });
 
 const resetPasswordSchema = z.object({
-  token: z.string().min(10),
+  token: z.string().trim().min(10),
   password: z.string().min(8),
 });
 

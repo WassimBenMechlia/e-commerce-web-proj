@@ -16,6 +16,7 @@ import { formatCurrency, formatDate, getErrorMessage } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import { useCartStore } from '@/store/cartStore';
 import type { CartResponse, ProductDetailResponse } from '@/types/api';
+import { reviewFormSchema } from '@/validation/forms';
 
 export const ProductPage = () => {
   const { id = '' } = useParams();
@@ -26,6 +27,7 @@ export const ProductPage = () => {
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
   const [isSavingReview, setIsSavingReview] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
 
   const productQuery = useQuery({
     queryKey: ['product', id],
@@ -70,17 +72,28 @@ export const ProductPage = () => {
   };
 
   const handleSubmitReview = async () => {
-    if (!comment.trim()) {
-      toast.error('Add a short review comment.');
+    const parsedReview = reviewFormSchema.safeParse({
+      rating,
+      comment,
+    });
+
+    if (!parsedReview.success) {
+      const nextError =
+        parsedReview.error.flatten().fieldErrors.comment?.[0] ??
+        parsedReview.error.issues[0]?.message ??
+        'Add a valid review.';
+      setReviewError(nextError);
+      toast.error(nextError);
       return;
     }
+
+    setReviewError(null);
 
     setIsSavingReview(true);
 
     try {
       await api.post(`/products/${id}/reviews`, {
-        rating,
-        comment,
+        ...parsedReview.data,
       });
       setComment('');
       toast.success('Review saved.');
@@ -224,7 +237,10 @@ export const ProductPage = () => {
                   <label className="text-sm text-text-secondary">Rating</label>
                   <select
                     value={rating}
-                    onChange={(event) => setRating(Number(event.target.value))}
+                    onChange={(event) => {
+                      setRating(Number(event.target.value));
+                      setReviewError(null);
+                    }}
                     className="h-11 rounded-input border border-border bg-background-primary px-4 text-text-primary outline-none"
                   >
                     {[5, 4, 3, 2, 1].map((value) => (
@@ -238,10 +254,14 @@ export const ProductPage = () => {
                   Review
                   <textarea
                     value={comment}
-                    onChange={(event) => setComment(event.target.value)}
+                    onChange={(event) => {
+                      setComment(event.target.value);
+                      setReviewError(null);
+                    }}
                     rows={4}
                     className="rounded-input border border-border bg-background-primary px-4 py-3 text-text-primary outline-none"
                   />
+                  {reviewError ? <span className="text-sm text-brand-error">{reviewError}</span> : null}
                 </label>
                 <Button onClick={handleSubmitReview} isLoading={isSavingReview}>
                   Submit Review

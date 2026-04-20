@@ -14,7 +14,8 @@
     "build": "npm run build -w client && npm run build -w server",
     "lint": "npm run lint -w client && npm run lint -w server",
     "format": "prettier --write .",
-    "seed": "npm run seed -w server"
+    "seed": "npm run seed -w server",
+    "stripe:listen": "./scripts/stripe-listen.sh"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

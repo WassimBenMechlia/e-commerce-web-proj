@@ -12,20 +12,12 @@ import { api } from '@/lib/axios';
 import { formatCurrency, getErrorMessage } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import { useCartStore } from '@/store/cartStore';
-import type { Address } from '@/types';
-import type { OrderResponse } from '@/types/api';
+import type { Address, Cart } from '@/types';
+import type { CartResponse, OrderResponse } from '@/types/api';
+import { addressFormSchema } from '@/validation/forms';
+import type { AddressFormValues } from '@/validation/forms';
 
-type RequiredAddressField =
-  | 'label'
-  | 'fullName'
-  | 'line1'
-  | 'city'
-  | 'state'
-  | 'postalCode'
-  | 'country'
-  | 'phone';
-
-type AddressErrors = Partial<Record<RequiredAddressField, string>>;
+type AddressErrors = Partial<Record<keyof AddressFormValues, string>>;
 
 const blankAddress: Address = {
   label: 'Shipping',
@@ -91,17 +83,26 @@ const validateAddress = (value: Address): AddressErrors => {
   return errors;
 };
 
-const requiredAddressFields: RequiredAddressField[] = [
-  'label',
-  'fullName',
-  'line1',
-  'city',
-  'state',
-  'postalCode',
-  'country',
-  'phone',
-];
+const getCartFromError = (error: unknown): Cart | null => {
+  if (
+    typeof error !== 'object' ||
+    error === null ||
+    !('response' in error) ||
+    typeof error.response !== 'object' ||
+    error.response === null ||
+    !('data' in error.response) ||
+    typeof error.response.data !== 'object' ||
+    error.response.data === null ||
+    !('details' in error.response.data) ||
+    typeof error.response.data.details !== 'object' ||
+    error.response.data.details === null ||
+    !('cart' in error.response.data.details)
+  ) {
+    return null;
+  }
 
+  return error.response.data.details.cart as Cart;
+};
 export const CheckoutPage = () => {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
@@ -125,22 +126,41 @@ export const CheckoutPage = () => {
     }
   }, [defaultAddress]);
 
-  const setAddressValue = (field: keyof Address, value: string) => {
+  useEffect(() => {
+    let cancelled = false;
+
+    const syncCart = async () => {
+      try {
+        const { data } = await api.get<CartResponse>('/cart');
+
+        if (!cancelled) {
+          setServerCart(data.cart);
+        }
+      } catch {
+        if (!cancelled) {
+          setServerCart(null);
+        }
+      }
+    };
+
+    void syncCart();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [setServerCart, user?.id]);
+
+  const updateAddressField = <K extends keyof Address>(field: K, value: Address[K]) => {
     setAddress((current) => ({ ...current, [field]: value }));
-
-    if (!requiredAddressFields.includes(field as RequiredAddressField)) {
-      return;
-    }
-
-    const requiredField = field as RequiredAddressField;
     setAddressErrors((current) => {
-      if (!current[requiredField]) {
+      if (!current[field as keyof AddressFormValues]) {
         return current;
       }
 
-      const nextErrors = { ...current };
-      delete nextErrors[requiredField];
-      return nextErrors;
+      return {
+        ...current,
+        [field]: undefined,
+      };
     });
   };
 
@@ -172,10 +192,32 @@ export const CheckoutPage = () => {
 
     setIsSubmitting(true);
 
+    const parsedAddress = addressFormSchema.safeParse(normalizedAddress);
+
+    if (!parsedAddress.success) {
+      const fieldErrors = parsedAddress.error.flatten().fieldErrors;
+      setAddressErrors({
+        label: fieldErrors.label?.[0],
+        fullName: fieldErrors.fullName?.[0],
+        line1: fieldErrors.line1?.[0],
+        line2: fieldErrors.line2?.[0],
+        city: fieldErrors.city?.[0],
+        state: fieldErrors.state?.[0],
+        postalCode: fieldErrors.postalCode?.[0],
+        country: fieldErrors.country?.[0],
+        phone: fieldErrors.phone?.[0],
+      });
+      toast.error(parsedAddress.error.issues[0]?.message ?? 'Enter a valid shipping address.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    setAddressErrors({});
+
     try {
       const { data } = await api.post<OrderResponse>('/orders', {
-        shippingAddress: normalizedAddress,
-        note,
+        shippingAddress: parsedAddress.data,
+        note: note.trim() || undefined,
       });
 
       if (data.checkoutUrl) {
@@ -192,6 +234,12 @@ export const CheckoutPage = () => {
       toast.success('Order created successfully.');
       navigate(`/checkout/success?simulated=1&orderId=${data.order?._id ?? ''}`);
     } catch (error) {
+      const refreshedCart = getCartFromError(error);
+
+      if (refreshedCart) {
+        setServerCart(refreshedCart);
+      }
+
       toast.error(getErrorMessage(error));
     } finally {
       setIsSubmitting(false);
@@ -245,61 +293,62 @@ export const CheckoutPage = () => {
                 value={address.label}
                 required
                 error={addressErrors.label}
-                onChange={(event) => setAddressValue('label', event.target.value)}
+                onChange={(event) => updateAddressField('label', event.target.value)}
               />
               <Input
                 label="* Full Name"
                 value={address.fullName}
                 required
                 error={addressErrors.fullName}
-                onChange={(event) => setAddressValue('fullName', event.target.value)}
+                onChange={(event) => updateAddressField('fullName', event.target.value)}
               />
               <Input
                 label="* Address Line 1"
                 value={address.line1}
                 required
                 error={addressErrors.line1}
-                onChange={(event) => setAddressValue('line1', event.target.value)}
+                onChange={(event) => updateAddressField('line1', event.target.value)}
               />
               <Input
                 label="Address Line 2"
                 value={address.line2 ?? ''}
-                onChange={(event) => setAddressValue('line2', event.target.value)}
+                error={addressErrors.line2}
+                onChange={(event) => updateAddressField('line2', event.target.value)}
               />
               <Input
                 label="* City"
                 value={address.city}
                 required
                 error={addressErrors.city}
-                onChange={(event) => setAddressValue('city', event.target.value)}
+                onChange={(event) => updateAddressField('city', event.target.value)}
               />
               <Input
                 label="* State"
                 value={address.state}
                 required
                 error={addressErrors.state}
-                onChange={(event) => setAddressValue('state', event.target.value)}
+                onChange={(event) => updateAddressField('state', event.target.value)}
               />
               <Input
                 label="* Postal Code"
                 value={address.postalCode}
                 required
                 error={addressErrors.postalCode}
-                onChange={(event) => setAddressValue('postalCode', event.target.value)}
+                onChange={(event) => updateAddressField('postalCode', event.target.value)}
               />
               <Input
                 label="* Country"
                 value={address.country}
                 required
                 error={addressErrors.country}
-                onChange={(event) => setAddressValue('country', event.target.value)}
+                onChange={(event) => updateAddressField('country', event.target.value)}
               />
               <Input
                 label="* Phone"
                 value={address.phone}
                 required
                 error={addressErrors.phone}
-                onChange={(event) => setAddressValue('phone', event.target.value)}
+                onChange={(event) => updateAddressField('phone', event.target.value)}
               />
             </div>
 

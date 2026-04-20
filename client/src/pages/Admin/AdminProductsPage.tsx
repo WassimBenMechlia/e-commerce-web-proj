@@ -14,21 +14,11 @@ import { queryClient } from '@/lib/queryClient';
 import { formatCurrency, getErrorMessage } from '@/lib/utils';
 import type { Category, Product } from '@/types';
 import type { CategoriesResponse, ProductsResponse } from '@/types/api';
+import { productDraftSchema } from '@/validation/forms';
+import type { ProductDraftFormValues } from '@/validation/forms';
 
-interface ProductDraft {
-  name: string;
-  description: string;
-  price: string;
-  compareAtPrice: string;
-  category: string;
-  stock: string;
-  sku: string;
-  tags: string;
-  ecoBadge: string;
-  isActive: boolean;
-  imageUrl: string;
-  imageAlt: string;
-}
+type ProductDraft = ProductDraftFormValues;
+type ProductDraftErrors = Partial<Record<keyof ProductDraftFormValues, string>>;
 
 const emptyDraft: ProductDraft = {
   name: '',
@@ -51,6 +41,7 @@ export const AdminProductsPage = () => {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [errors, setErrors] = useState<ProductDraftErrors>({});
 
   const categoriesQuery = useQuery({
     queryKey: ['categories'],
@@ -77,6 +68,7 @@ export const AdminProductsPage = () => {
       category: categories[0]?._id ?? '',
     });
     setSelectedFile(null);
+    setErrors({});
     setIsModalOpen(true);
   };
 
@@ -97,14 +89,20 @@ export const AdminProductsPage = () => {
       imageAlt: product.images[0]?.alt ?? '',
     });
     setSelectedFile(null);
+    setErrors({});
     setIsModalOpen(true);
   };
 
-  const uploadImageIfNeeded = async () => {
+  const updateDraftField = <K extends keyof ProductDraft>(field: K, value: ProductDraft[K]) => {
+    setDraft((current) => ({ ...current, [field]: value }));
+    setErrors((current) => ({ ...current, [field]: undefined }));
+  };
+
+  const uploadImageIfNeeded = async (parsedDraft: ProductDraft) => {
     if (!selectedFile) {
       return {
-        url: draft.imageUrl,
-        alt: draft.imageAlt,
+        url: parsedDraft.imageUrl ?? '',
+        alt: parsedDraft.imageAlt,
       };
     }
 
@@ -122,32 +120,66 @@ export const AdminProductsPage = () => {
 
     return {
       ...data.image,
-      alt: draft.imageAlt,
+      alt: parsedDraft.imageAlt,
     };
   };
 
   const handleSave = async () => {
     setIsSaving(true);
 
+    const parsedDraft = productDraftSchema.safeParse(draft);
+
+    if (!parsedDraft.success) {
+      const fieldErrors = parsedDraft.error.flatten().fieldErrors;
+      setErrors({
+        name: fieldErrors.name?.[0],
+        description: fieldErrors.description?.[0],
+        price: fieldErrors.price?.[0],
+        compareAtPrice: fieldErrors.compareAtPrice?.[0],
+        category: fieldErrors.category?.[0],
+        stock: fieldErrors.stock?.[0],
+        sku: fieldErrors.sku?.[0],
+        tags: fieldErrors.tags?.[0],
+        ecoBadge: fieldErrors.ecoBadge?.[0],
+        imageUrl: fieldErrors.imageUrl?.[0],
+        imageAlt: fieldErrors.imageAlt?.[0],
+      });
+      toast.error(parsedDraft.error.issues[0]?.message ?? 'Enter valid product details.');
+      setIsSaving(false);
+      return;
+    }
+
+    if (!selectedFile && !parsedDraft.data.imageUrl) {
+      setErrors((current) => ({
+        ...current,
+        imageUrl: 'Add an image URL or upload an image.',
+      }));
+      toast.error('Add an image URL or upload an image.');
+      setIsSaving(false);
+      return;
+    }
+
+    setErrors({});
+
     try {
-      const image = await uploadImageIfNeeded();
+      const image = await uploadImageIfNeeded(parsedDraft.data);
       const payload = {
-        name: draft.name,
-        description: draft.description,
-        price: Number(draft.price),
-        compareAtPrice: draft.compareAtPrice
-          ? Number(draft.compareAtPrice)
+        name: parsedDraft.data.name,
+        description: parsedDraft.data.description,
+        price: Number(parsedDraft.data.price),
+        compareAtPrice: parsedDraft.data.compareAtPrice
+          ? Number(parsedDraft.data.compareAtPrice)
           : undefined,
         images: [image],
-        category: draft.category,
-        stock: Number(draft.stock),
-        sku: draft.sku,
-        tags: draft.tags
+        category: parsedDraft.data.category,
+        stock: Number(parsedDraft.data.stock),
+        sku: parsedDraft.data.sku,
+        tags: (parsedDraft.data.tags ?? '')
           .split(',')
           .map((item) => item.trim())
           .filter(Boolean),
-        ecoBadge: draft.ecoBadge || undefined,
-        isActive: draft.isActive,
+        ecoBadge: parsedDraft.data.ecoBadge,
+        isActive: parsedDraft.data.isActive,
       };
 
       if (editingProduct) {
@@ -237,54 +269,44 @@ export const AdminProductsPage = () => {
           <Input
             label="Product name"
             value={draft.name}
-            onChange={(event) =>
-              setDraft((current) => ({ ...current, name: event.target.value }))
-            }
+            error={errors.name}
+            onChange={(event) => updateDraftField('name', event.target.value)}
           />
           <Input
             label="SKU"
             value={draft.sku}
-            onChange={(event) =>
-              setDraft((current) => ({ ...current, sku: event.target.value }))
-            }
+            error={errors.sku}
+            onChange={(event) => updateDraftField('sku', event.target.value)}
           />
           <label className="grid gap-2 text-sm text-text-secondary md:col-span-2">
             Description
             <textarea
               value={draft.description}
-              onChange={(event) =>
-                setDraft((current) => ({ ...current, description: event.target.value }))
-              }
+              onChange={(event) => updateDraftField('description', event.target.value)}
               rows={4}
               className="rounded-input border border-border bg-background-primary px-4 py-3 text-text-primary outline-none"
             />
+            {errors.description ? <span className="text-sm text-brand-error">{errors.description}</span> : null}
           </label>
           <Input
             label="Price"
             type="number"
             value={draft.price}
-            onChange={(event) =>
-              setDraft((current) => ({ ...current, price: event.target.value }))
-            }
+            error={errors.price}
+            onChange={(event) => updateDraftField('price', event.target.value)}
           />
           <Input
             label="Compare-at price"
             type="number"
             value={draft.compareAtPrice}
-            onChange={(event) =>
-              setDraft((current) => ({
-                ...current,
-                compareAtPrice: event.target.value,
-              }))
-            }
+            error={errors.compareAtPrice}
+            onChange={(event) => updateDraftField('compareAtPrice', event.target.value)}
           />
           <label className="grid gap-2 text-sm text-text-secondary">
             Category
             <select
               value={draft.category}
-              onChange={(event) =>
-                setDraft((current) => ({ ...current, category: event.target.value }))
-              }
+              onChange={(event) => updateDraftField('category', event.target.value)}
               className="h-12 rounded-input border border-border bg-background-primary px-4 text-text-primary outline-none"
             >
               {categories.map((category: Category) => (
@@ -293,60 +315,57 @@ export const AdminProductsPage = () => {
                 </option>
               ))}
             </select>
+            {errors.category ? <span className="text-sm text-brand-error">{errors.category}</span> : null}
           </label>
           <Input
             label="Stock"
             type="number"
             value={draft.stock}
-            onChange={(event) =>
-              setDraft((current) => ({ ...current, stock: event.target.value }))
-            }
+            error={errors.stock}
+            onChange={(event) => updateDraftField('stock', event.target.value)}
           />
           <Input
             label="Image URL"
             value={draft.imageUrl}
-            onChange={(event) =>
-              setDraft((current) => ({ ...current, imageUrl: event.target.value }))
-            }
+            error={errors.imageUrl}
+            onChange={(event) => updateDraftField('imageUrl', event.target.value)}
           />
           <Input
             label="Image alt"
             value={draft.imageAlt}
-            onChange={(event) =>
-              setDraft((current) => ({ ...current, imageAlt: event.target.value }))
-            }
+            error={errors.imageAlt}
+            onChange={(event) => updateDraftField('imageAlt', event.target.value)}
           />
           <label className="grid gap-2 text-sm text-text-secondary">
             Upload image
             <input
               type="file"
               accept="image/*"
-              onChange={(event) => setSelectedFile(event.target.files?.[0] ?? null)}
+              onChange={(event) => {
+                setSelectedFile(event.target.files?.[0] ?? null);
+                setErrors((current) => ({ ...current, imageUrl: undefined }));
+              }}
               className="h-12 rounded-input border border-border bg-background-primary px-4 py-3 text-text-primary outline-none"
             />
           </label>
           <Input
             label="Tags"
             value={draft.tags}
-            onChange={(event) =>
-              setDraft((current) => ({ ...current, tags: event.target.value }))
-            }
+            error={errors.tags}
+            onChange={(event) => updateDraftField('tags', event.target.value)}
             placeholder="botanical, bestseller"
           />
           <Input
             label="Eco badge"
             value={draft.ecoBadge}
-            onChange={(event) =>
-              setDraft((current) => ({ ...current, ecoBadge: event.target.value }))
-            }
+            error={errors.ecoBadge}
+            onChange={(event) => updateDraftField('ecoBadge', event.target.value)}
           />
           <label className="flex items-center gap-3 text-sm text-text-secondary">
             <input
               type="checkbox"
               checked={draft.isActive}
-              onChange={(event) =>
-                setDraft((current) => ({ ...current, isActive: event.target.checked }))
-              }
+              onChange={(event) => updateDraftField('isActive', event.target.checked)}
             />
             Product is active
           </label>

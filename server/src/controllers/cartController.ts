@@ -87,13 +87,22 @@ export const updateCartItem = asyncHandler(
       throw new AppError('Cart item not found.', 404);
     }
 
-    const product = await Product.findById(cartItem.product).select('stock');
+    const product = await Product.findById(cartItem.product).select('stock isActive');
 
-    if (!product) {
-      throw new AppError('Product not found.', 404);
+    if (!product || !product.isActive || product.stock < 1) {
+      cart.set(
+        'items',
+        cart.items.filter((item) => item._id.toString() !== request.params.itemId),
+      );
+      await cart.save();
+
+      response.json({
+        cart: await buildCartResponse(request.user.id),
+      });
+      return;
     }
 
-    cartItem.quantity = Math.min(payload.quantity, product.stock || 1);
+    cartItem.quantity = Math.min(payload.quantity, product.stock);
     await cart.save();
 
     response.json({

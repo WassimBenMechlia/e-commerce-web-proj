@@ -11,6 +11,10 @@ import { getErrorMessage } from '@/lib/utils';
 import { useAuthStore } from '@/store/authStore';
 import { useCartStore } from '@/store/cartStore';
 import type { AuthResponse } from '@/types/api';
+import { loginFormSchema } from '@/validation/forms';
+import type { LoginFormValues } from '@/validation/forms';
+
+type LoginErrors = Partial<Record<keyof LoginFormValues, string>>;
 
 export const LoginPage = () => {
   const navigate = useNavigate();
@@ -22,14 +26,32 @@ export const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<LoginErrors>({});
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
 
+    const parsedForm = loginFormSchema.safeParse({
+      email,
+      password,
+    });
+
+    if (!parsedForm.success) {
+      const fieldErrors = parsedForm.error.flatten().fieldErrors;
+      setErrors({
+        email: fieldErrors.email?.[0],
+        password: fieldErrors.password?.[0],
+      });
+      toast.error(parsedForm.error.issues[0]?.message ?? 'Enter valid sign-in details.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    setErrors({});
+
     try {
       const { data } = await api.post<AuthResponse>('/auth/login', {
-        email,
-        password,
+        ...parsedForm.data,
         guestCart: guestItems.map((item) => ({
           productId: item.id,
           quantity: item.quantity,
@@ -62,13 +84,21 @@ export const LoginPage = () => {
               label="Email"
               type="email"
               value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              error={errors.email}
+              onChange={(event) => {
+                setEmail(event.target.value);
+                setErrors((current) => ({ ...current, email: undefined }));
+              }}
             />
             <Input
               label="Password"
               type="password"
               value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              error={errors.password}
+              onChange={(event) => {
+                setPassword(event.target.value);
+                setErrors((current) => ({ ...current, password: undefined }));
+              }}
             />
           </div>
           <div className="flex items-center justify-between gap-3 text-sm">

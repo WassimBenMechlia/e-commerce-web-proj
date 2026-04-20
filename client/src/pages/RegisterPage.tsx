@@ -8,6 +8,10 @@ import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { api } from '@/lib/axios';
 import { getErrorMessage } from '@/lib/utils';
+import { registerFormSchema } from '@/validation/forms';
+import type { RegisterFormValues } from '@/validation/forms';
+
+type RegisterErrors = Partial<Record<keyof RegisterFormValues, string>>;
 
 export const RegisterPage = () => {
   const navigate = useNavigate();
@@ -15,17 +19,36 @@ export const RegisterPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState<RegisterErrors>({});
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
 
-    try {
-      await api.post('/auth/register', {
-        name,
-        email,
-        password,
+    const parsedForm = registerFormSchema.safeParse({
+      name,
+      email,
+      password,
+    });
+
+    if (!parsedForm.success) {
+      const fieldErrors = parsedForm.error.flatten().fieldErrors;
+      setErrors({
+        name: fieldErrors.name?.[0],
+        email: fieldErrors.email?.[0],
+        password: fieldErrors.password?.[0],
       });
-      toast.success('Account created. Verify your email to continue.');
+      toast.error(parsedForm.error.issues[0]?.message ?? 'Enter valid account details.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    setErrors({});
+
+    try {
+      const { data } = await api.post<{ message: string }>('/auth/register', {
+        ...parsedForm.data,
+      });
+      toast.success(data.message);
       navigate('/login');
     } catch (error) {
       toast.error(getErrorMessage(error));
@@ -45,16 +68,32 @@ export const RegisterPage = () => {
             <h1 className="mt-2 text-4xl">Join Desert Modern</h1>
           </div>
           <div className="grid gap-4">
-            <Input value={name} onChange={(event) => setName(event.target.value)} label="Name" />
+            <Input
+              value={name}
+              error={errors.name}
+              onChange={(event) => {
+                setName(event.target.value);
+                setErrors((current) => ({ ...current, name: undefined }));
+              }}
+              label="Name"
+            />
             <Input
               value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              error={errors.email}
+              onChange={(event) => {
+                setEmail(event.target.value);
+                setErrors((current) => ({ ...current, email: undefined }));
+              }}
               label="Email"
               type="email"
             />
             <Input
               value={password}
-              onChange={(event) => setPassword(event.target.value)}
+              error={errors.password}
+              onChange={(event) => {
+                setPassword(event.target.value);
+                setErrors((current) => ({ ...current, password: undefined }));
+              }}
               label="Password"
               type="password"
             />

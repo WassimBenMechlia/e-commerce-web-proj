@@ -3,29 +3,17 @@ import { Types } from 'mongoose';
 import { z } from 'zod';
 
 import { User } from '../models/User.js';
+import { addressSchema } from '../validation/addressSchema.js';
 import { AppError } from '../utils/appError.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
-const addressSchema = z.object({
-  label: z.string().min(1),
-  fullName: z.string().min(2),
-  line1: z.string().min(3),
-  line2: z.string().optional(),
-  city: z.string().min(2),
-  state: z.string().min(2),
-  postalCode: z.string().min(2),
-  country: z.string().min(2),
-  phone: z.string().min(6),
-  isDefault: z.boolean().optional(),
-});
-
 const updateProfileSchema = z.object({
-  name: z.string().min(2),
+  name: z.string().trim().min(2),
   avatar: z
     .object({
-      url: z.string().url(),
-      publicId: z.string().optional(),
-      alt: z.string().optional(),
+      url: z.string().trim().url(),
+      publicId: z.string().trim().optional(),
+      alt: z.string().trim().optional(),
     })
     .optional(),
 });
@@ -94,10 +82,9 @@ export const addAddress = asyncHandler(async (request: Request, response: Respon
   const user = await getCurrentUser(request.user.id);
 
   if (payload.isDefault) {
-    user.addresses = user.addresses.map((address) => ({
-      ...address,
-      isDefault: false,
-    }));
+    user.addresses.forEach((address) => {
+      address.isDefault = false;
+    });
   }
 
   user.addresses.push({
@@ -130,10 +117,9 @@ export const updateAddress = asyncHandler(
     }
 
     if (payload.isDefault) {
-      user.addresses = user.addresses.map((item) => ({
-        ...item,
-        isDefault: false,
-      }));
+      user.addresses.forEach((item) => {
+        item.isDefault = false;
+      });
     }
 
     address.label = payload.label;
