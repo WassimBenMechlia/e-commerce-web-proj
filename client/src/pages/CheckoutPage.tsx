@@ -15,6 +15,18 @@ import { useCartStore } from '@/store/cartStore';
 import type { Address } from '@/types';
 import type { OrderResponse } from '@/types/api';
 
+type RequiredAddressField =
+  | 'label'
+  | 'fullName'
+  | 'line1'
+  | 'city'
+  | 'state'
+  | 'postalCode'
+  | 'country'
+  | 'phone';
+
+type AddressErrors = Partial<Record<RequiredAddressField, string>>;
+
 const blankAddress: Address = {
   label: 'Shipping',
   fullName: '',
@@ -26,6 +38,70 @@ const blankAddress: Address = {
   phone: '',
 };
 
+const sanitizeAddress = (value: Address): Address => ({
+  label: value.label.trim(),
+  fullName: value.fullName.trim(),
+  line1: value.line1.trim(),
+  line2: value.line2?.trim() ? value.line2.trim() : undefined,
+  city: value.city.trim(),
+  state: value.state.trim(),
+  postalCode: value.postalCode.trim(),
+  country: value.country.trim(),
+  phone: value.phone.trim(),
+});
+
+const validateAddress = (value: Address): AddressErrors => {
+  const errors: AddressErrors = {};
+
+  if (!value.label.trim()) {
+    errors.label = 'Label is required.';
+  }
+
+  if (!value.fullName.trim()) {
+    errors.fullName = 'Full name is required.';
+  }
+
+  if (!value.line1.trim()) {
+    errors.line1 = 'Address line 1 is required.';
+  }
+
+  if (!value.city.trim()) {
+    errors.city = 'City is required.';
+  }
+
+  if (!value.state.trim()) {
+    errors.state = 'State is required.';
+  }
+
+  if (!value.postalCode.trim()) {
+    errors.postalCode = 'Postal code is required.';
+  }
+
+  if (!value.country.trim()) {
+    errors.country = 'Country is required.';
+  }
+
+  const phoneValue = value.phone.trim();
+  if (!phoneValue) {
+    errors.phone = 'Phone is required.';
+  } else if (phoneValue.length < 6) {
+    errors.phone = 'Phone must be at least 6 characters.';
+  }
+
+  return errors;
+};
+
+const requiredAddressFields: RequiredAddressField[] = [
+  'label',
+  'fullName',
+  'line1',
+  'city',
+  'state',
+  'postalCode',
+  'country',
+  'phone',
+];
+
 export const CheckoutPage = () => {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
@@ -33,6 +109,7 @@ export const CheckoutPage = () => {
   const setServerCart = useCartStore((state) => state.setServerCart);
   const [note, setNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [addressErrors, setAddressErrors] = useState<AddressErrors>({});
 
   const defaultAddress = useMemo(
     () => user?.addresses.find((address) => address.isDefault) ?? user?.addresses[0],
@@ -44,8 +121,28 @@ export const CheckoutPage = () => {
   useEffect(() => {
     if (defaultAddress) {
       setAddress(defaultAddress);
+      setAddressErrors({});
     }
   }, [defaultAddress]);
+
+  const setAddressValue = (field: keyof Address, value: string) => {
+    setAddress((current) => ({ ...current, [field]: value }));
+
+    if (!requiredAddressFields.includes(field as RequiredAddressField)) {
+      return;
+    }
+
+    const requiredField = field as RequiredAddressField;
+    setAddressErrors((current) => {
+      if (!current[requiredField]) {
+        return current;
+      }
+
+      const nextErrors = { ...current };
+      delete nextErrors[requiredField];
+      return nextErrors;
+    });
+  };
 
   if (!cart || cart.items.length === 0) {
     return (
@@ -64,11 +161,20 @@ export const CheckoutPage = () => {
   }
 
   const handleSubmit = async () => {
+    const normalizedAddress = sanitizeAddress(address);
+    const nextErrors = validateAddress(normalizedAddress);
+
+    if (Object.keys(nextErrors).length > 0) {
+      setAddressErrors(nextErrors);
+      toast.error('Please complete all required fields.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
       const { data } = await api.post<OrderResponse>('/orders', {
-        shippingAddress: address,
+        shippingAddress: normalizedAddress,
         note,
       });
 
@@ -112,7 +218,10 @@ export const CheckoutPage = () => {
                     <button
                       type="button"
                       key={`${savedAddress.label}-${savedAddress.line1}`}
-                      onClick={() => setAddress(savedAddress)}
+                      onClick={() => {
+                        setAddress(savedAddress);
+                        setAddressErrors({});
+                      }}
                       className="rounded-card border border-border bg-background-primary p-4 text-left"
                     >
                       <p className="font-medium text-text-primary">
@@ -132,73 +241,65 @@ export const CheckoutPage = () => {
 
             <div className="grid gap-4 md:grid-cols-2">
               <Input
-                label="Label"
+                label="* Label"
                 value={address.label}
-                onChange={(event) =>
-                  setAddress((current) => ({ ...current, label: event.target.value }))
-                }
+                required
+                error={addressErrors.label}
+                onChange={(event) => setAddressValue('label', event.target.value)}
               />
               <Input
-                label="Full Name"
+                label="* Full Name"
                 value={address.fullName}
-                onChange={(event) =>
-                  setAddress((current) => ({
-                    ...current,
-                    fullName: event.target.value,
-                  }))
-                }
+                required
+                error={addressErrors.fullName}
+                onChange={(event) => setAddressValue('fullName', event.target.value)}
               />
               <Input
-                label="Address Line 1"
+                label="* Address Line 1"
                 value={address.line1}
-                onChange={(event) =>
-                  setAddress((current) => ({ ...current, line1: event.target.value }))
-                }
+                required
+                error={addressErrors.line1}
+                onChange={(event) => setAddressValue('line1', event.target.value)}
               />
               <Input
                 label="Address Line 2"
                 value={address.line2 ?? ''}
-                onChange={(event) =>
-                  setAddress((current) => ({ ...current, line2: event.target.value }))
-                }
+                onChange={(event) => setAddressValue('line2', event.target.value)}
               />
               <Input
-                label="City"
+                label="* City"
                 value={address.city}
-                onChange={(event) =>
-                  setAddress((current) => ({ ...current, city: event.target.value }))
-                }
+                required
+                error={addressErrors.city}
+                onChange={(event) => setAddressValue('city', event.target.value)}
               />
               <Input
-                label="State"
+                label="* State"
                 value={address.state}
-                onChange={(event) =>
-                  setAddress((current) => ({ ...current, state: event.target.value }))
-                }
+                required
+                error={addressErrors.state}
+                onChange={(event) => setAddressValue('state', event.target.value)}
               />
               <Input
-                label="Postal Code"
+                label="* Postal Code"
                 value={address.postalCode}
-                onChange={(event) =>
-                  setAddress((current) => ({
-                    ...current,
-                    postalCode: event.target.value,
-                  }))
-                }
+                required
+                error={addressErrors.postalCode}
+                onChange={(event) => setAddressValue('postalCode', event.target.value)}
               />
               <Input
-                label="Country"
+                label="* Country"
                 value={address.country}
-                onChange={(event) =>
-                  setAddress((current) => ({ ...current, country: event.target.value }))
-                }
+                required
+                error={addressErrors.country}
+                onChange={(event) => setAddressValue('country', event.target.value)}
               />
               <Input
-                label="Phone"
+                label="* Phone"
                 value={address.phone}
-                onChange={(event) =>
-                  setAddress((current) => ({ ...current, phone: event.target.value }))
-                }
+                required
+                error={addressErrors.phone}
+                onChange={(event) => setAddressValue('phone', event.target.value)}
               />
             </div>
 

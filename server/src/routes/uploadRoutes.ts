@@ -7,5 +7,6 @@ import { upload } from '../middleware/upload.js';
 const router = Router();
 
 router.post('/image', protect, authorize('admin'), upload.single('image'), uploadImage);
+router.post('/avatar', protect, upload.single('image'), uploadImage);
 
 export default router;

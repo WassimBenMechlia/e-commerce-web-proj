@@ -108,7 +108,7 @@ export const HomePage = () => {
         <SectionHeading
           eyebrow="Curated categories"
           title="Warm, organic navigation that feels like an editorial shelf."
-          description="Each category is backed by MongoDB data, surfaced through the Express API, and styled to keep browsing clear on mobile and desktop."
+          description="Choose a category to open the matching products in shop."
         />
         <div className="grid gap-5 md:grid-cols-3">
           {categoriesQuery.isLoading
@@ -133,7 +133,8 @@ export const HomePage = () => {
                       {category.name}
                     </p>
                     <p className="text-sm text-text-secondary">
-                      Explore the collection
+                      {category.productCount ?? 0} item
+                      {(category.productCount ?? 0) === 1 ? '' : 's'} in this category
                     </p>
                   </div>
                 </Link>

@@ -82,13 +82,25 @@ export const getProducts = asyncHandler(async (request: Request, response: Respo
   };
 
   if (query.category) {
-    const category = await Category.findOne({
-      $or: [{ slug: query.category }, { _id: query.category }],
-    }).select('_id');
+    const categoryFilter = Types.ObjectId.isValid(query.category)
+      ? { _id: query.category }
+      : { slug: query.category };
+    const category = await Category.findOne(categoryFilter).select('_id');
 
-    if (category) {
-      filter.category = category._id;
+    if (!category) {
+      response.json({
+        products: [],
+        pagination: {
+          page: query.page,
+          limit: query.limit,
+          total: 0,
+          totalPages: 0,
+        },
+      });
+      return;
     }
+
+    filter.category = category._id;
   }
 
   if (query.search) {

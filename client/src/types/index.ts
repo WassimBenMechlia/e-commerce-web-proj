@@ -41,6 +41,7 @@ export interface Category {
   slug: string;
   image?: string;
   parentCategory?: Category | null;
+  productCount?: number;
 }
 
 export interface Review {

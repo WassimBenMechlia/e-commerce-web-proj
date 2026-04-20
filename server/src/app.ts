@@ -28,7 +28,26 @@ app.post(
 
 app.use(
   cors({
-    origin: env.CLIENT_URL,
+    origin: (origin, callback) => {
+      // Allow non-browser clients or same-origin requests without Origin header.
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+
+      if (origin === env.CLIENT_URL) {
+        callback(null, true);
+        return;
+      }
+
+      // In local development Vite can switch ports if one is already in use.
+      if (env.NODE_ENV !== 'production' && /^http:\/\/localhost:\d+$/.test(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error('Not allowed by CORS'));
+    },
     credentials: true,
   }),
 );
