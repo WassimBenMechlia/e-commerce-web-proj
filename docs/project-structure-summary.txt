@@ -1,0 +1,372 @@
+DESERT MODERN COMMERCE
+Project Structure Summary
+
+Purpose
+- This document summarizes the repository structure for presentation use.
+- It explains how the project is organized and how the main folders work
+  together at runtime.
+
+Project Type
+- Full-stack monorepo managed with npm workspaces
+- Main applications:
+  - client/: React storefront + admin dashboard
+  - server/: Express API + MongoDB business layer
+- Main business scope:
+  authentication, product catalog, cart, checkout, orders, admin tools,
+  analytics, uploads, and deployment support
+
+Important Note
+- Generated folders such as node_modules/, client/dist/, and server/dist/
+  are build artifacts. They are not the handwritten project logic.
+
+======================================================================
+1. HIGH-LEVEL STRUCTURE
+======================================================================
+
+Root workspace
+- Hosts shared scripts and coordinates both applications.
+- Main entry scripts are defined in the root package.json.
+
+client/
+- Contains the frontend application built with React, TypeScript, and Vite.
+- Includes the customer-facing store and the admin interface.
+
+server/
+- Contains the backend API built with Node.js, Express, and Mongoose.
+- Handles authentication, persistence, orders, security, and integrations.
+
+docs/
+- Stores supporting material such as the Postman collection and this
+  project structure summary.
+
+scripts/
+- Stores helper scripts used during development, such as Stripe webhook
+  forwarding.
+
+======================================================================
+2. SIMPLIFIED REPOSITORY TREE
+======================================================================
+
+.
+|-- README.md
+|-- package.json
+|-- package-lock.json
+|-- render.yaml
+|-- PUSH_GUIDE.md
+|-- docs/
+|   |-- DesertModern.postman_collection.json
+|   |-- project-structure-summary.html
+|   `-- project-structure-summary.txt
+|-- scripts/
+|   `-- stripe-listen.sh
+|-- client/
+|   |-- .env.example
+|   |-- package.json
+|   |-- vercel.json
+|   |-- vite.config.ts
+|   |-- tailwind.config.js
+|   |-- public/
+|   `-- src/
+|       |-- main.tsx
+|       |-- App.tsx
+|       |-- assets/
+|       |-- components/
+|       |-- hooks/
+|       |-- lib/
+|       |-- pages/
+|       |-- store/
+|       |-- styles/
+|       |-- types/
+|       `-- validation/
+`-- server/
+    |-- .env.example
+    |-- package.json
+    |-- railway.json
+    |-- tsconfig.json
+    `-- src/
+        |-- server.ts
+        |-- app.ts
+        |-- config/
+        |-- controllers/
+        |-- middleware/
+        |-- models/
+        |-- routes/
+        |-- scripts/
+        |-- tests/
+        |-- types/
+        |-- utils/
+        `-- validation/
+
+======================================================================
+3. ROOT FOLDER RESPONSIBILITIES
+======================================================================
+
+README.md
+- Explains setup, scripts, environment variables, Stripe local testing,
+  deployment, and project features.
+
+package.json
+- Declares the npm workspaces: client and server.
+- Provides the main commands:
+  - npm run dev
+  - npm run build
+  - npm run lint
+  - npm run seed
+  - npm run format
+  - npm run stripe:listen
+
+render.yaml
+- Backend deployment configuration for Render.
+
+client/vercel.json
+- Frontend deployment configuration for Vercel.
+
+server/railway.json
+- Backend deployment configuration for Railway.
+
+docs/
+- Contains API testing material and presentation support files.
+
+scripts/stripe-listen.sh
+- Helps forward local Stripe webhook events to the backend endpoint.
+
+======================================================================
+4. FRONTEND STRUCTURE: client/
+======================================================================
+
+Main role
+- The client folder contains the full frontend application.
+- It serves both customers and admins from the same React codebase.
+
+Key files and folders
+
+client/src/main.tsx
+- Frontend entry point.
+- Mounts the app and wraps it with:
+  - BrowserRouter
+  - QueryClientProvider
+  - Toaster notifications
+
+client/src/App.tsx
+- Main route configuration.
+- Declares:
+  - public routes
+  - protected user routes
+  - admin-only routes
+- Uses lazy loading and suspense for page-level code splitting.
+
+client/src/pages/
+- Page-level screens such as:
+  - HomePage
+  - ShopPage
+  - ProductPage
+  - CartPage
+  - CheckoutPage
+  - LoginPage / RegisterPage
+  - ProfilePage
+  - AdminDashboardPage
+  - AdminProductsPage
+  - AdminOrdersPage
+  - AdminUsersPage
+
+client/src/components/
+- Reusable interface pieces.
+- Organized into:
+  - common/: feature-oriented shared components
+  - layout/: shells like header, footer, admin shell, app shell
+  - ui/: reusable low-level controls and visual components
+
+client/src/store/
+- Zustand state stores.
+- Main responsibilities:
+  - authStore.ts: current user + bootstrap status
+  - cartStore.ts: guest cart + server cart synchronization
+  - uiStore.ts: UI state
+
+client/src/hooks/
+- Custom hooks for shared behavior.
+- Examples:
+  - useAppBootstrap.ts: loads current user and cart on app startup
+  - useDebounce.ts
+  - useThemeEffect.ts
+
+client/src/lib/
+- Shared frontend utilities.
+- Important examples:
+  - axios.ts: API client with refresh-token retry logic
+  - queryClient.ts: React Query setup
+  - constants.ts and utils.ts
+
+client/src/types/ and client/src/validation/
+- Shared TypeScript models and form validation logic.
+
+Frontend runtime flow
+1. main.tsx starts the React app and registers global providers.
+2. App.tsx maps routes to pages.
+3. useAppBootstrap.ts fetches the current user and cart.
+4. Pages call the backend through lib/axios.ts.
+5. Zustand stores and React Query keep the UI synchronized with data.
+
+======================================================================
+5. BACKEND STRUCTURE: server/
+======================================================================
+
+Main role
+- The server folder contains the API and the business logic layer.
+- It exposes REST endpoints under /api/* and persists data in MongoDB.
+
+Key files and folders
+
+server/src/server.ts
+- Backend startup entry point.
+- Connects to MongoDB, creates the HTTP server, and listens on the
+  configured port.
+
+server/src/app.ts
+- Defines the Express application.
+- Registers:
+  - Stripe webhook endpoint
+  - CORS
+  - Helmet
+  - Rate limiting
+  - Compression
+  - Cookie parsing
+  - JSON body parsing
+  - Mongo sanitization
+  - Health check route
+  - Main API routes
+  - Not found + error handlers
+
+server/src/config/
+- Infrastructure configuration files:
+  - env.ts: validates environment variables with Zod
+  - db.ts: database connection
+  - email.ts: email configuration
+  - stripe.ts: Stripe configuration
+  - cloudinary.ts: media upload configuration
+
+server/src/routes/
+- Maps endpoint groups to controllers:
+  - authRoutes.ts
+  - productRoutes.ts
+  - categoryRoutes.ts
+  - cartRoutes.ts
+  - orderRoutes.ts
+  - uploadRoutes.ts
+  - adminRoutes.ts
+  - userRoutes.ts
+
+server/src/controllers/
+- Holds the business logic for each domain.
+- Responsibilities include:
+  - validating requests
+  - querying models
+  - applying business rules
+  - returning formatted responses
+
+server/src/models/
+- Mongoose data models:
+  - User
+  - Product
+  - Category
+  - Cart
+  - Order
+
+server/src/middleware/
+- Shared request middleware:
+  - auth.ts
+  - errorHandler.ts
+  - upload.ts
+
+server/src/utils/
+- Shared backend helpers:
+  - token creation and verification
+  - auth cookies
+  - cart merge and cart validation
+  - email sending and templates
+  - slug generation
+  - async error wrapping
+
+server/src/scripts/seed.ts
+- Seeds demo data for local development and testing.
+
+server/src/tests/api.integration.test.ts
+- Integration tests using an in-memory MongoDB server.
+
+Backend request flow
+1. server.ts starts the backend after connecting to MongoDB.
+2. app.ts applies middleware and registers routes.
+3. Requests are sent to a route group such as /api/auth or /api/orders.
+4. Controllers execute the business logic.
+5. Controllers use models and shared utilities.
+6. The API returns JSON responses to the frontend.
+
+======================================================================
+6. DATA AND INTEGRATION FLOW
+======================================================================
+
+User interface side
+- The user interacts with screens inside client/src/pages.
+- Components and stores manage display logic and local state.
+
+API communication
+- The frontend sends requests through client/src/lib/axios.ts.
+- Axios is configured with credentials and token refresh behavior.
+
+Business logic side
+- The backend receives requests in Express routes.
+- Controllers process requests and talk to MongoDB through Mongoose.
+
+External integrations
+- Stripe: checkout and payment webhooks
+- Cloudinary: media uploads
+- Nodemailer: verification and password reset emails
+
+State synchronization
+- React Query manages server data on the frontend.
+- Zustand manages local application state such as auth and cart state.
+
+======================================================================
+7. MAIN FUNCTIONAL DOMAINS
+======================================================================
+
+- Authentication and refresh-token session handling
+- Email verification and password reset
+- Product catalog and category browsing
+- Guest cart persistence and merge-on-login
+- Checkout and order creation
+- User profile and addresses
+- Admin product, order, and user management
+- Analytics and dashboard views
+- Deployment and API testing support
+
+======================================================================
+8. RECOMMENDED PRESENTATION ORDER
+======================================================================
+
+To guide a professor through the project, this order is clear and logical:
+
+1. Start from the root folder.
+   Explain that this is a monorepo containing both frontend and backend.
+
+2. Show README.md and package.json.
+   Explain setup, scripts, and how the project is run locally.
+
+3. Open client/.
+   Present the frontend layers in this order:
+   main.tsx -> App.tsx -> pages -> components -> store -> hooks -> lib
+
+4. Open server/.
+   Present the backend layers in this order:
+   server.ts -> app.ts -> routes -> controllers -> models -> middleware
+   -> utils -> tests
+
+5. Finish with docs/ and deployment files.
+   This shows the project is not only coded, but also documented, tested,
+   and ready for deployment.
+
+One-sentence summary
+- This repository separates presentation logic in client/, business and
+  data logic in server/, and project orchestration at the root.
+
+Prepared from the repository state available on April 20, 2026.

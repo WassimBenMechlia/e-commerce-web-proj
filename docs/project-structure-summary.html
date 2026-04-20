@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Desert Modern Commerce - Project Structure Summary</title>
+    <style>
+      :root {
+        --bg: #f7f2eb;
+        --paper: #fffdfa;
+        --ink: #2d241d;
+        --muted: #6b5a4d;
+        --line: #d8c8b7;
+        --accent: #9b5f3f;
+        --accent-soft: #f0e1d4;
+        --success: #586b43;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Helvetica Neue", Arial, sans-serif;
+        color: var(--ink);
+        background: var(--bg);
+        line-height: 1.5;
+      }
+
+      .page {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 44px 48px 56px;
+        background: var(--paper);
+      }
+
+      h1,
+      h2,
+      h3 {
+        margin: 0 0 10px;
+        line-height: 1.15;
+      }
+
+      h1 {
+        font-size: 31px;
+        letter-spacing: -0.02em;
+      }
+
+      h2 {
+        margin-top: 34px;
+        padding-top: 18px;
+        font-size: 20px;
+        border-top: 2px solid var(--line);
+      }
+
+      h3 {
+        margin-top: 18px;
+        font-size: 16px;
+      }
+
+      p {
+        margin: 0 0 12px;
+      }
+
+      .lead {
+        font-size: 16px;
+        color: var(--muted);
+        max-width: 760px;
+      }
+
+      .meta {
+        margin-top: 12px;
+        padding: 14px 16px;
+        border: 1px solid var(--line);
+        background: var(--accent-soft);
+        border-radius: 12px;
+        color: var(--muted);
+      }
+
+      .note {
+        padding: 12px 14px;
+        border-left: 4px solid var(--accent);
+        background: #faf4ee;
+        margin: 14px 0;
+      }
+
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+        margin-top: 14px;
+      }
+
+      .card {
+        padding: 16px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: #fff;
+      }
+
+      .card strong {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--accent);
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 14px 0 6px;
+        font-size: 14px;
+      }
+
+      th,
+      td {
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        vertical-align: top;
+        text-align: left;
+      }
+
+      th {
+        background: #f6ede4;
+      }
+
+      code,
+      pre {
+        font-family: "SFMono-Regular", Menlo, Consolas, monospace;
+      }
+
+      pre {
+        margin: 14px 0;
+        padding: 18px;
+        overflow-x: auto;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: #2e261f;
+        color: #f9efe3;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      ul,
+      ol {
+        margin: 8px 0 12px 20px;
+      }
+
+      li {
+        margin: 4px 0;
+      }
+
+      .flow {
+        padding: 16px 18px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: #fff;
+      }
+
+      .footer {
+        margin-top: 34px;
+        padding-top: 16px;
+        font-size: 12px;
+        color: var(--muted);
+        border-top: 1px solid var(--line);
+      }
+
+      .tag {
+        display: inline-block;
+        margin-right: 8px;
+        margin-bottom: 8px;
+        padding: 5px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: #fff;
+        font-size: 12px;
+        color: var(--success);
+      }
+
+      @media print {
+        body {
+          background: #fff;
+        }
+
+        .page {
+          max-width: none;
+          padding: 24px 28px 40px;
+        }
+
+        h2 {
+          break-after: avoid;
+        }
+
+        pre,
+        table,
+        .card,
+        .flow {
+          break-inside: avoid;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <h1>Desert Modern Commerce</h1>
+      <p class="lead">
+        Project structure summary prepared for a presentation walkthrough. This document
+        explains how the repository is organized, what each major folder contains, and
+        how the frontend and backend connect at runtime.
+      </p>
+
+      <div class="meta">
+        <strong>Repository type:</strong> full-stack monorepo with npm workspaces<br />
+        <strong>Main apps:</strong> <code>client</code> (React storefront + admin UI) and
+        <code>server</code> (Express API)<br />
+        <strong>Main objective:</strong> e-commerce platform with authentication, cart,
+        checkout, orders, admin management, analytics, and deployment support
+      </div>
+
+      <section>
+        <h2>1. High-Level Architecture</h2>
+        <div class="cards">
+          <div class="card">
+            <strong>Root Workspace</strong>
+            Coordinates the monorepo, shared scripts, formatting, local development, and
+            deployment entry points.
+          </div>
+          <div class="card">
+            <strong>Client App</strong>
+            React + TypeScript + Vite frontend for customers and administrators, with
+            routing, state management, and API communication.
+          </div>
+          <div class="card">
+            <strong>Server App</strong>
+            Node.js + Express + MongoDB backend handling business logic, security,
+            persistence, and third-party integrations.
+          </div>
+        </div>
+
+        <div class="note">
+          Generated folders like <code>node_modules/</code>, <code>client/dist/</code>, and
+          <code>server/dist/</code> are build artifacts and are not part of the handwritten
+          business logic.
+        </div>
+      </section>
+
+      <section>
+        <h2>2. Simplified Repository Tree</h2>
+        <pre>.
+├── README.md
+├── package.json
+├── package-lock.json
+├── render.yaml
+├── PUSH_GUIDE.md
+├── docs/
+│   ├── DesertModern.postman_collection.json
+│   └── project-structure-summary.html
+├── scripts/
+│   └── stripe-listen.sh
+├── client/
+│   ├── .env.example
+│   ├── package.json
+│   ├── vercel.json
+│   ├── vite.config.ts
+│   ├── tailwind.config.js
+│   ├── public/
+│   └── src/
+│       ├── App.tsx
+│       ├── main.tsx
+│       ├── assets/
+│       ├── components/
+│       ├── hooks/
+│       ├── lib/
+│       ├── pages/
+│       ├── store/
+│       ├── styles/
+│       ├── types/
+│       └── validation/
+└── server/
+    ├── .env.example
+    ├── package.json
+    ├── railway.json
+    ├── tsconfig.json
+    └── src/
+        ├── app.ts
+        ├── server.ts
+        ├── config/
+        ├── controllers/
+        ├── middleware/
+        ├── models/
+        ├── routes/
+        ├── scripts/
+        ├── tests/
+        ├── types/
+        ├── utils/
+        └── validation/</pre>
+      </section>
+
+      <section>
+        <h2>3. What the Root Folder Does</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>File / Folder</th>
+              <th>Role in the project</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>package.json</code></td>
+              <td>
+                Declares npm workspaces and global scripts such as
+                <code>npm run dev</code>, <code>build</code>, <code>lint</code>,
+                <code>seed</code>, and <code>stripe:listen</code>.
+              </td>
+            </tr>
+            <tr>
+              <td><code>README.md</code></td>
+              <td>
+                Main project documentation: setup, scripts, environment variables,
+                features, deployment, and Stripe local testing.
+              </td>
+            </tr>
+            <tr>
+              <td><code>docs/</code></td>
+              <td>
+                Supporting material for API testing and presentation, including the
+                Postman collection.
+              </td>
+            </tr>
+            <tr>
+              <td><code>scripts/stripe-listen.sh</code></td>
+              <td>
+                Helper script that forwards Stripe webhook events to the local Express
+                endpoint during development.
+              </td>
+            </tr>
+            <tr>
+              <td><code>render.yaml</code>, <code>client/vercel.json</code>, <code>server/railway.json</code></td>
+              <td>
+                Deployment configuration for hosting the backend on Render or Railway
+                and the frontend on Vercel.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>4. Frontend Structure: <code>client/</code></h2>
+        <p>
+          The frontend is a React + TypeScript application built with Vite. It contains
+          both the customer storefront and the admin dashboard.
+        </p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Path</th>
+              <th>Purpose</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>client/src/main.tsx</code></td>
+              <td>
+                Frontend entry point. Wraps the app with the router, React Query
+                provider, and toast notifications.
+              </td>
+            </tr>
+            <tr>
+              <td><code>client/src/App.tsx</code></td>
+              <td>
+                Central route map. Defines public pages, protected user pages, and
+                admin-only pages with lazy loading.
+              </td>
+            </tr>
+            <tr>
+              <td><code>client/src/pages/</code></td>
+              <td>
+                Page-level screens such as home, shop, product details, cart, checkout,
+                login, register, profile, and admin pages.
+              </td>
+            </tr>
+            <tr>
+              <td><code>client/src/components/</code></td>
+              <td>
+                Reusable UI building blocks. It is split into common pieces,
+                layout wrappers, and lower-level UI components.
+              </td>
+            </tr>
+            <tr>
+              <td><code>client/src/store/</code></td>
+              <td>
+                Zustand stores for authentication state, cart state, and UI state.
+                Guest cart data is persisted in local storage.
+              </td>
+            </tr>
+            <tr>
+              <td><code>client/src/hooks/</code></td>
+              <td>
+                Custom hooks such as app bootstrapping, theme syncing, and debounce
+                logic.
+              </td>
+            </tr>
+            <tr>
+              <td><code>client/src/lib/</code></td>
+              <td>
+                Shared client utilities, including the Axios API instance and React
+                Query configuration.
+              </td>
+            </tr>
+            <tr>
+              <td><code>client/src/types/</code> and <code>validation/</code></td>
+              <td>
+                Shared TypeScript definitions and form validation logic used by pages
+                and components.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Frontend runtime flow</h3>
+        <div class="flow">
+          <ol>
+            <li><code>main.tsx</code> mounts the application and registers global providers.</li>
+            <li><code>App.tsx</code> declares routes and wraps them with error handling and suspense.</li>
+            <li><code>useAppBootstrap.ts</code> fetches the current user and cart when the app starts.</li>
+            <li><code>lib/axios.ts</code> sends authenticated API calls and automatically retries after token refresh.</li>
+            <li>Pages render business features by composing reusable components and shared stores.</li>
+          </ol>
+        </div>
+      </section>
+
+      <section>
+        <h2>5. Backend Structure: <code>server/</code></h2>
+        <p>
+          The backend is an Express API connected to MongoDB through Mongoose. It
+          handles security, authentication, product management, cart operations, order
+          creation, admin actions, and external services.
+        </p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Path</th>
+              <th>Purpose</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>server/src/server.ts</code></td>
+              <td>
+                Startup entry point. Connects to MongoDB and starts the HTTP server.
+              </td>
+            </tr>
+            <tr>
+              <td><code>server/src/app.ts</code></td>
+              <td>
+                Express application definition. Registers security middleware, JSON
+                parsing, health check, webhook route, API routes, and global error
+                handling.
+              </td>
+            </tr>
+            <tr>
+              <td><code>server/src/config/</code></td>
+              <td>
+                Infrastructure configuration for environment variables, database,
+                email, Stripe, and Cloudinary.
+              </td>
+            </tr>
+            <tr>
+              <td><code>server/src/routes/</code></td>
+              <td>
+                Route declarations that group endpoints by domain:
+                authentication, products, categories, cart, orders, uploads, admin,
+                and users.
+              </td>
+            </tr>
+            <tr>
+              <td><code>server/src/controllers/</code></td>
+              <td>
+                Business logic for each route. Controllers validate input, call models
+                and utilities, and shape API responses.
+              </td>
+            </tr>
+            <tr>
+              <td><code>server/src/models/</code></td>
+              <td>
+                MongoDB data models for users, products, categories, carts, and orders.
+              </td>
+            </tr>
+            <tr>
+              <td><code>server/src/middleware/</code></td>
+              <td>
+                Reusable request middleware for authentication, uploads, and centralized
+                error handling.
+              </td>
+            </tr>
+            <tr>
+              <td><code>server/src/utils/</code></td>
+              <td>
+                Shared backend helpers such as token generation, cookies, cart merging,
+                email templates, and async error wrappers.
+              </td>
+            </tr>
+            <tr>
+              <td><code>server/src/scripts/seed.ts</code></td>
+              <td>
+                Seeds the database with demo users and sample commerce data.
+              </td>
+            </tr>
+            <tr>
+              <td><code>server/src/tests/api.integration.test.ts</code></td>
+              <td>
+                End-to-end style integration tests using an in-memory MongoDB instance.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Backend request flow</h3>
+        <div class="flow">
+          <ol>
+            <li>The server starts in <code>server.ts</code> after a successful database connection.</li>
+            <li><code>app.ts</code> applies CORS, Helmet, rate limiting, cookies, body parsing, and sanitization.</li>
+            <li>Requests are sent to domain routes such as <code>/api/auth</code> or <code>/api/products</code>.</li>
+            <li>Controllers execute business logic and interact with Mongoose models.</li>
+            <li>Shared utilities support token handling, emails, cart synchronization, and error formatting.</li>
+          </ol>
+        </div>
+      </section>
+
+      <section>
+        <h2>6. Functional Modules Inside the Project</h2>
+        <span class="tag">Authentication</span>
+        <span class="tag">Email verification</span>
+        <span class="tag">Password reset</span>
+        <span class="tag">Product catalog</span>
+        <span class="tag">Cart sync</span>
+        <span class="tag">Stripe checkout</span>
+        <span class="tag">Order management</span>
+        <span class="tag">Admin dashboard</span>
+        <span class="tag">Analytics</span>
+        <span class="tag">Cloudinary uploads</span>
+
+        <p>
+          The structure of the repository reflects clear business domains. Each domain is
+          represented on both sides of the application: page-level UI and stores on the
+          frontend, then routes, controllers, models, and utilities on the backend.
+        </p>
+      </section>
+
+      <section>
+        <h2>7. Data and Integration Flow</h2>
+        <div class="flow">
+          <ol>
+            <li>The user interacts with pages inside <code>client/src/pages</code>.</li>
+            <li>The frontend calls the backend through the Axios client in <code>client/src/lib/axios.ts</code>.</li>
+            <li>The backend exposes REST endpoints under <code>/api/*</code>.</li>
+            <li>Business logic is executed inside controllers and persisted in MongoDB through Mongoose models.</li>
+            <li>Stripe handles checkout, Cloudinary handles media uploads, and Nodemailer handles emails.</li>
+            <li>Responses return to the frontend, which updates React Query caches and Zustand stores.</li>
+          </ol>
+        </div>
+      </section>
+
+      <section>
+        <h2>8. Suggested Presentation Walkthrough</h2>
+        <p>
+          For a professor presentation, the clearest order is to move from the outside of
+          the repository toward the business logic:
+        </p>
+        <ol>
+          <li>Start at the root folder and explain that this is an npm workspace monorepo.</li>
+          <li>Show <code>README.md</code> and <code>package.json</code> to explain setup and scripts.</li>
+          <li>Open <code>client/</code> and present the frontend structure: entry point, routes, pages, components, stores.</li>
+          <li>Open <code>server/</code> and explain the backend layering: routes, controllers, models, middleware, utilities.</li>
+          <li>Finish with <code>docs/</code>, test coverage, and deployment files to show project maturity.</li>
+        </ol>
+
+        <div class="note">
+          If you want to narrate the structure in one sentence: this repository separates
+          presentation logic in <code>client/</code>, business and data logic in
+          <code>server/</code>, and shared project orchestration at the root.
+        </div>
+      </section>
+
+      <div class="footer">
+        Prepared from the repository state available on April 20, 2026. This summary is
+        intended as a clean source document for presentation support or NotebookLM-based
+        explanation generation.
+      </div>
+    </main>
+  </body>
+</html>
