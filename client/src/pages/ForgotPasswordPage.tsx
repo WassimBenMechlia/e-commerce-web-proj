@@ -15,6 +15,7 @@ type ForgotPasswordErrors = Partial<Record<keyof ForgotPasswordFormValues, strin
 export const ForgotPasswordPage = () => {
   const [email, setEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [resetUrl, setResetUrl] = useState<string | null>(null);
   const [errors, setErrors] = useState<ForgotPasswordErrors>({});
 
   const handleSubmit = async () => {
@@ -35,14 +36,32 @@ export const ForgotPasswordPage = () => {
     setErrors({});
 
     try {
-      const { data } = await api.post<{ message: string }>('/auth/forgot-password', {
-        ...parsedForm.data,
-      });
+      const { data } = await api.post<{ message: string; resetUrl?: string }>(
+        '/auth/forgot-password',
+        {
+          ...parsedForm.data,
+        },
+      );
+
+      setResetUrl(data.resetUrl ?? null);
       toast.success(data.message);
     } catch (error) {
       toast.error(getErrorMessage(error));
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleCopyResetUrl = async () => {
+    if (!resetUrl) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(resetUrl);
+      toast.success('Reset link copied.');
+    } catch {
+      toast.error('Unable to copy reset link.');
     }
   };
 
@@ -63,12 +82,35 @@ export const ForgotPasswordPage = () => {
             error={errors.email}
             onChange={(event) => {
               setEmail(event.target.value);
+              setResetUrl(null);
               setErrors((current) => ({ ...current, email: undefined }));
             }}
           />
           <Button onClick={handleSubmit} isLoading={isSubmitting}>
             Send Reset Email
           </Button>
+
+          {resetUrl ? (
+            <div className="grid gap-3 rounded-card border border-border bg-background-primary p-4">
+              <p className="text-sm text-text-secondary">
+                Local mode: SMTP is not configured, so use this reset link directly.
+              </p>
+              <p className="break-all text-sm text-text-primary">{resetUrl}</p>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="secondary" size="sm" onClick={handleCopyResetUrl}>
+                  Copy Link
+                </Button>
+                <a
+                  href={resetUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex h-10 items-center justify-center rounded-button bg-background-secondary px-4 text-sm font-medium text-text-primary hover:bg-background-tertiary"
+                >
+                  Open Link
+                </a>
+              </div>
+            </div>
+          ) : null}
         </Card>
       </section>
     </PageTransition>
